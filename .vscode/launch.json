@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run MusicVisualizer",
+            "request": "launch",
+            "mainClass": "src.MusicVisualizer",
+            "vmArgs": "--module-path /Users/ollie/Desktop/Java Projects/MusicVisualizer/lib --add-modules javafx.controls,javafx.fxml"
+        }
+    ]
+}
