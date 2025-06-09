@@ -1,46 +1,74 @@
 package src;
 
+import java.io.File;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.layout.Pane;
+import javafx.scene.control.Button;
+import javafx.scene.layout.VBox;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 public class MusicVisualizer extends Application {
+    private String audioPath = "sample.wav";
+    private MediaPlayer mediaPlayer;
+    private boolean isPlaying = false;
+    
     @Override
     public void start(Stage stage) throws Exception {
         // Create canvas for drawing
-        Canvas canvas = new Canvas(800, 600);
+        Canvas canvas = new Canvas(800, 500);
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        Pane pane = new Pane(canvas);
-        Scene scene = new Scene(pane, 800, 600);
-        stage.setTitle("Music Visualizer");
-        stage.setScene(scene);
-
-        try {
-            // Load audio samples using direct file path
-            float[] samples = AudioProcessor.getAudioSamples("src/sample.wav");
-
-            // Draw waveform with better scaling
-            gc.beginPath();
-            gc.moveTo(0, 300);
-            for (int i = 0; i < Math.min(samples.length, 800); i++) {
-                gc.lineTo(i, 300 + samples[i] * 200); // Increased amplitude scaling
-            }
-            gc.stroke();
-        } catch (Exception e) {
-            System.err.println("Error loading audio: " + e.getMessage());
+        
+        // Create play/pause button
+        Button playButton = new Button("Play");
+        playButton.setOnAction(e -> togglePlayback());
+        
+        VBox root = new VBox(10, playButton, canvas);
+        Scene scene = new Scene(root, 800, 600);
+        
+        // Initialize media player
+        File audioFile = new File(audioPath);
+        if (!audioFile.exists()) {
+            System.err.println("Audio file not found: " + audioFile.getAbsolutePath());
             Platform.exit();
+            return;
         }
 
+        Media media = new Media(audioFile.toURI().toString());
+        mediaPlayer = new MediaPlayer(media);
+        
+        // Setup visualization
+        mediaPlayer.setAudioSpectrumListener((timestamp, duration, magnitudes, phases) -> {
+            gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+            gc.setFill(Color.BLUE);
+            
+            for (int i = 0; i < magnitudes.length; i++) {
+                double height = Math.max(0, -magnitudes[i] - 60) * 5;
+                gc.fillRect(i * 10, 400 - height, 8, height);
+            }
+        });
+
+        stage.setTitle("Music Visualizer");
+        stage.setScene(scene);
         stage.show();
     }
 
+    private void togglePlayback() {
+        if (isPlaying) {
+            mediaPlayer.pause();
+            isPlaying = false;
+        } else {
+            mediaPlayer.play();
+            isPlaying = true;
+        }
+    }
+
     public static void main(String[] args) {
-        // Initialize JavaFX with module path
-        System.setProperty("javafx.version", "17");
-        Application.launch(MusicVisualizer.class, args);
+        Application.launch(args);
     }
 }

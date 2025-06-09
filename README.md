@@ -1,0 +1,2 @@
+Run program with: javac -d bin --module-path lib --add-modules javafx.controls,javafx.media src/MusicVisualizer.java src/AudioP
+rocessor.java && java --module-path lib --add-modules javafx.controls,javafx.media -cp bin src.MusicVisualizer
