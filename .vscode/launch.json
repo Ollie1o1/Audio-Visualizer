@@ -1,12 +1,39 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "java",
-            "name": "Run MusicVisualizer",
-            "request": "launch",
-            "mainClass": "src.MusicVisualizer",
-            "vmArgs": "--module-path /Users/ollie/Desktop/Java Projects/MusicVisualizer/lib --add-modules javafx.controls,javafx.fxml"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run MusicVisualizer",
+      "request": "launch",
+      "mainClass": "src.MusicVisualizer",
+      "vmArgs": "--enable-native-access=ALL-UNNAMED -Dprism.order=sw -Djava.library.path=lib --module-path lib --add-modules javafx.controls,javafx.media",
+      "projectName": "MusicVisualizer"
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/ollie/Desktop/Java Projects/MusicVisualizer/bin",
+      "program": "/Users/ollie/Desktop/Java Projects/MusicVisualizer/bin/build/Debug/outDebug"
+    },
+    {
+      "type": "java",
+      "name": "Compile MusicVisualizer",
+      "request": "build",
+      "mainClass": "src.MusicVisualizer",
+      "vmArgs": "--module-path lib --add-modules javafx.controls,javafx.media",
+      "projectName": "MusicVisualizer",
+      "args": [
+        "-d",
+        "bin",
+        "--module-path",
+        "lib",
+        "--add-modules",
+        "javafx.controls,javafx.media",
+        "src/MusicVisualizer.java",
+        "src/AudioProcessor.java"
+      ]
+    }
+  ]
 }
