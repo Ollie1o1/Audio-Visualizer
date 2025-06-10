@@ -14,7 +14,13 @@ public class MusicVisualizer extends Application {
     private Canvas canvas;
     private GraphicsContext gc;
     private double[] currentMagnitudes;
+    private double[] smoothedMagnitudes; // For smoother animation
     private AnimationTimer animationTimer;
+    
+    // Sensitivity and responsiveness settings
+    private static final double SENSITIVITY_MULTIPLIER = 50.0;
+    private static final double SMOOTHING_FACTOR = 0.3;
+    private static final double NOISE_THRESHOLD = 0.001;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -22,12 +28,13 @@ public class MusicVisualizer extends Application {
         canvas = new Canvas(800, 400);
         gc = canvas.getGraphicsContext2D();
         
-        // Initialize magnitude array
+        // Initialize magnitude arrays
         currentMagnitudes = new double[64];
+        smoothedMagnitudes = new double[64];
 
-        VBox root = new VBox(10, canvas);
-        root.setStyle("-fx-background-color: #0a1428; -fx-padding: 10;");
-        Scene scene = new Scene(root, 820, 500);
+        VBox root = new VBox(canvas);
+        root.setStyle("-fx-background-color: #1a1a1a; -fx-padding: 0;");
+        Scene scene = new Scene(root, 800, 400);
 
         // Start audio capture
         try {
@@ -48,7 +55,7 @@ public class MusicVisualizer extends Application {
         };
         animationTimer.start();
 
-        stage.setTitle("Live Audio Visualizer");
+        stage.setTitle("Audio Visualizer");
         stage.setScene(scene);
         stage.setOnCloseRequest(e -> {
             animationTimer.stop();
@@ -64,7 +71,6 @@ public class MusicVisualizer extends Application {
         float[] samples = AudioProcessor.getCurrentSamples();
         if (samples == null || samples.length == 0) return;
         
-        // Simple FFT-like processing (simplified for visualization)
         int bands = currentMagnitudes.length;
         int samplesPerBand = samples.length / bands;
         
@@ -73,74 +79,81 @@ public class MusicVisualizer extends Application {
             int start = band * samplesPerBand;
             int end = Math.min(start + samplesPerBand, samples.length);
             
+            // Calculate RMS (Root Mean Square) for better amplitude representation
             for (int i = start; i < end; i++) {
-                sum += Math.abs(samples[i]);
+                sum += samples[i] * samples[i];
             }
             
-            // Greatly reduced sensitivity (75% less than original)
-            double avg = sum / (end - start);
-            currentMagnitudes[band] = 20 * Math.log10(avg * 10 + 0.1);
+            double rms = Math.sqrt(sum / (end - start));
+            
+            // Apply noise threshold - if below threshold, set to 0
+            if (rms < NOISE_THRESHOLD) {
+                rms = 0;
+            }
+            
+            // More aggressive scaling for better responsiveness
+            double magnitude = rms * SENSITIVITY_MULTIPLIER;
+            
+            // Apply logarithmic scaling for better visual representation
+            if (magnitude > 0) {
+                magnitude = Math.log10(magnitude * 10 + 1) * 0.5;
+            }
+            
+            // Smooth the magnitude changes for fluid animation
+            smoothedMagnitudes[band] = smoothedMagnitudes[band] * (1 - SMOOTHING_FACTOR) + 
+                                     magnitude * SMOOTHING_FACTOR;
+            
+            currentMagnitudes[band] = smoothedMagnitudes[band];
         }
     }
     
     private void drawVisualization() {
-        // Clear canvas with dark background
-        gc.setFill(Color.rgb(5, 10, 20));
+        // Clear canvas with dark greyish-black background
+        gc.setFill(Color.rgb(26, 26, 26));
         gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-        
-        // Draw grid lines for reference
-        gc.setStroke(Color.rgb(60, 60, 90));
-        gc.setLineWidth(1);
-        
-        // Horizontal grid lines
-        for (int i = 0; i <= 10; i++) {
-            double y = (canvas.getHeight() / 10.0) * i;
-            gc.strokeLine(0, y, canvas.getWidth(), y);
-        }
-        
-        // Vertical grid lines
-        for (int i = 0; i <= 16; i++) {
-            double x = (canvas.getWidth() / 16.0) * i;
-            gc.strokeLine(x, 0, x, canvas.getHeight());
-        }
         
         // Draw frequency bars
         int bandCount = currentMagnitudes.length;
         double bandWidth = canvas.getWidth() / (double) bandCount;
-        double maxHeight = canvas.getHeight() - 20;
+        double maxHeight = canvas.getHeight();
+        double baselineY = canvas.getHeight(); // Bars start from bottom
         
         for (int i = 0; i < bandCount; i++) {
-            // Start from bottom with greatly reduced sensitivity
             double magnitude = currentMagnitudes[i];
-            double normalizedMag = Math.max(0, (magnitude + 90) / 90.0);
-            double height = normalizedMag * maxHeight * 0.25; // Reduce by 75%
             
-            // Very gentle scaling curve
-            height = Math.pow(height / maxHeight, 0.7) * maxHeight;
-            height = Math.max(height, 2); // Very small minimum height
-            
-            // Color gradient from blue to red based on frequency
-            double hue = i / (double)bandCount * 0.7; // 0-0.7 (blue to red)
-            Color barColor = Color.hsb(hue * 360, 0.9, 0.9);
-            
-            // Draw the bar
-            double barX = i * bandWidth;
-            double barY = canvas.getHeight() - height;
-            
-            gc.setFill(barColor);
-            gc.fillRect(barX + 1, barY, bandWidth - 2, height);
+            // Only draw bars if there's actual signal above threshold
+            if (magnitude > 0.001) {
+                // Scale height more aggressively
+                double height = Math.min(magnitude * maxHeight * 2, maxHeight);
+                
+                // Apply power curve for more dramatic response
+                height = Math.pow(height / maxHeight, 0.6) * maxHeight;
+                
+                // Calculate bar position
+                double barX = i * bandWidth;
+                double barY = baselineY - height;
+                double barWidth = bandWidth * 0.8; // Slight gap between bars
+                
+                // Use white tones with slight transparency based on intensity
+                double alpha = Math.min(0.3 + (height / maxHeight) * 0.7, 1.0);
+                Color barColor = Color.rgb(255, 255, 255, alpha);
+                
+                // Draw the bar
+                gc.setFill(barColor);
+                gc.fillRect(barX + bandWidth * 0.1, barY, barWidth, height);
+                
+                // Add subtle glow effect for higher bars
+                if (height > maxHeight * 0.3) {
+                    gc.setFill(Color.rgb(255, 255, 255, 0.1));
+                    gc.fillRect(barX + bandWidth * 0.05, barY - 2, barWidth * 1.1, height + 4);
+                }
+            }
         }
         
-        // Draw center line
-        gc.setStroke(Color.WHITE);
+        // Draw subtle baseline
+        gc.setStroke(Color.rgb(60, 60, 60));
         gc.setLineWidth(1);
-        gc.strokeLine(0, canvas.getHeight() - 10, canvas.getWidth(), canvas.getHeight() - 10);
-        
-        // Add frequency labels
-        gc.setFill(Color.LIGHTGRAY);
-        gc.fillText("Low", 10, canvas.getHeight() - 5);
-        gc.fillText("Mid", canvas.getWidth()/2 - 10, canvas.getHeight() - 5);
-        gc.fillText("High", canvas.getWidth() - 35, canvas.getHeight() - 5);
+        gc.strokeLine(0, baselineY - 1, canvas.getWidth(), baselineY - 1);
     }
 
     public static void main(String[] args) {
