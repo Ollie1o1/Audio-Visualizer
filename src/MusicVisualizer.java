@@ -77,9 +77,9 @@ public class MusicVisualizer extends Application {
                 sum += Math.abs(samples[i]);
             }
             
-            // Convert to dB scale (simplified)
+            // Greatly reduced sensitivity (75% less than original)
             double avg = sum / (end - start);
-            currentMagnitudes[band] = 20 * Math.log10(avg * 100 + 1);
+            currentMagnitudes[band] = 20 * Math.log10(avg * 10 + 0.1);
         }
     }
     
@@ -110,14 +110,14 @@ public class MusicVisualizer extends Application {
         double maxHeight = canvas.getHeight() - 20;
         
         for (int i = 0; i < bandCount; i++) {
-            // Convert dB magnitude to height
+            // Start from bottom with greatly reduced sensitivity
             double magnitude = currentMagnitudes[i];
-            double normalizedMag = Math.max(0, (magnitude + 60) / 60.0);
-            double height = normalizedMag * maxHeight;
+            double normalizedMag = Math.max(0, (magnitude + 90) / 90.0);
+            double height = normalizedMag * maxHeight * 0.25; // Reduce by 75%
             
-            // Enhanced height for better visibility
-            height = Math.pow(height / maxHeight, 0.3) * maxHeight;
-            height = Math.max(height, 10);
+            // Very gentle scaling curve
+            height = Math.pow(height / maxHeight, 0.7) * maxHeight;
+            height = Math.max(height, 2); // Very small minimum height
             
             // Color gradient from blue to red based on frequency
             double hue = i / (double)bandCount * 0.7; // 0-0.7 (blue to red)
